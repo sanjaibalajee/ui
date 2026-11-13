@@ -108,7 +108,7 @@ function createDatePickerController() {
   return createController<{
     /** The selected value: an ISO date, a `[start, end]` range, or `null`. */
     getValue: () => DatePickerValue
-    /** Selects a value. Returns false when canceled, unchanged, disabled, read-only, or holding a date people can't pick, like one past `max`. */
+    /** Selects a value. Returns false when canceled, unchanged, disabled, read-only, or holding a date people can't pick, like one past `max` or text that isn't an ISO date. */
     setValue: (
       value: DatePickerValue,
       options?: DatePickerChangeOptions<DatePickerValueChangeReason>

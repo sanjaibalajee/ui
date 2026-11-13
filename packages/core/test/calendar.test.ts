@@ -1002,6 +1002,41 @@ describe("calendar", () => {
     expect(instance.api.setValue("2026-10-23")).toBe(true)
   })
 
+  test("a controller can't select text that isn't an ISO date, or a list or range holding one, and null still clears", () => {
+    const onValueChange = vi.fn()
+    const single = mount({ defaultValue: "2026-10-16", onValueChange }).instance
+    for (const text of ["25/12/2026", "2026-02-30", "tomorrow"]) {
+      expect(single.api.setValue(text)).toBe(false)
+    }
+    expect(single.api.getValue()).toBe("2026-10-16")
+    expect(single.api.setValue(null)).toBe(true)
+    expect(single.api.getValue()).toBeNull()
+    document.body.replaceChildren()
+    const multiple = mount({
+      mode: "multiple",
+      defaultValue: ["2026-10-16"],
+      onValueChange,
+    }).instance
+    expect(multiple.api.setValue(["2026-10-20", "25/10/2026"])).toBe(false)
+    expect(multiple.api.getValue()).toEqual(["2026-10-16"])
+    expect(multiple.api.setValue([])).toBe(true)
+    document.body.replaceChildren()
+    const range = mount({
+      mode: "range",
+      defaultValue: ["2026-10-16", "2026-10-18"],
+      onValueChange,
+    }).instance
+    expect(range.api.setValue(["2026-10-20"])).toBe(false)
+    expect(range.api.setValue(["2026-10-20", "2026-10-32"])).toBe(false)
+    expect(range.api.getValue()).toEqual(["2026-10-16", "2026-10-18"])
+    expect(range.api.setValue(["2026-10-20", "2026-10-22"])).toBe(true)
+    expect(onValueChange.mock.calls.map(([value]) => value)).toEqual([
+      null,
+      [],
+      ["2026-10-20", "2026-10-22"],
+    ])
+  })
+
   test("a controller can't select on a disabled or read-only calendar", () => {
     for (const locked of [{ disabled: true }, { readOnly: true }]) {
       const { instance } = mount(locked)

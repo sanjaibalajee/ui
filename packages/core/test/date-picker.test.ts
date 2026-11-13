@@ -421,6 +421,34 @@ describe("datePicker", () => {
     expect(range.setValue(["2026-10-20", "2026-10-22"])).toBe(true)
   })
 
+  test("a controller can't set text that isn't an ISO date, keeping the value, and null still clears it", () => {
+    const onValueChange = vi.fn()
+    const controller = createDatePickerController()
+    const picker = mount({
+      controller,
+      defaultValue: "2026-10-16",
+      onValueChange,
+    })
+    for (const text of ["25/12/2026", "2026-02-30", "tomorrow"]) {
+      expect(controller.setValue(text)).toBe(false)
+    }
+    expect(picker.instance.get().value).toBe("2026-10-16")
+    expect(onValueChange).not.toHaveBeenCalled()
+    expect(controller.setValue(null)).toBe(true)
+    expect(picker.instance.get().value).toBe(null)
+    const range = createDatePickerController()
+    const rangePicker = mount({
+      controller: range,
+      mode: "range",
+      defaultValue: ["2026-10-20", "2026-10-22"],
+    })
+    expect(range.setValue(["2026-10-24", "next week"])).toBe(false)
+    expect(rangePicker.instance.get().value).toEqual([
+      "2026-10-20",
+      "2026-10-22",
+    ])
+  })
+
   test("a controller can't change a disabled or read-only picker, but the browser's restore can", () => {
     for (const locked of [{ disabled: true }, { readOnly: true }]) {
       const controller = createDatePickerController()

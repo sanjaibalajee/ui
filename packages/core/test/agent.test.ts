@@ -302,6 +302,29 @@ describe("agent", () => {
     })
   })
 
+  test("setValue refuses text a date picker can't read as an ISO date, or a range with one end, and keeps its value", async () => {
+    const agent = createAgent()
+    const onValueChange = vi.fn()
+    const instance = datePicker({
+      id: "stay",
+      mode: "range",
+      defaultValue: ["2026-12-20", "2026-12-22"],
+      onValueChange,
+    })
+    const input = document.body.appendChild(document.createElement("input"))
+    input.setAttribute("aria-label", "Stay")
+    cleanups.push(bind(instance.part("input"), input), () => instance.destroy())
+    await Promise.resolve()
+    for (const value of [["25/12/2026", "27/12/2026"], ["2026-12-25"]]) {
+      const outcome = await agent.act({
+        steps: [{ ref: "Stay", action: "setValue", args: [value] }],
+      })
+      expect(outcome.steps[0]).toMatchObject({ result: false })
+    }
+    expect(instance.get().value).toEqual(["2026-12-20", "2026-12-22"])
+    expect(onValueChange).not.toHaveBeenCalled()
+  })
+
   test("a number input at its max still takes actions, though its increment button is disabled", async () => {
     const agent = createAgent()
     const instance = numberInput({ id: "seats", defaultValue: 10, max: 10 })
