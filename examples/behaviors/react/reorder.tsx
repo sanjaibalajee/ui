@@ -44,6 +44,7 @@ const ranking = definePrimitive({
         key: "value",
         draft: "moving",
         set: (value, details) => change("value", value, details),
+        label: (key) => key,
       }),
     }
   },
