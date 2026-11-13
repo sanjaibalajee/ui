@@ -13,6 +13,7 @@ import {
 } from "../src/page/agent/agent"
 import { button } from "../src/components/button/button"
 import { checkbox } from "../src/components/checkbox/checkbox"
+import { checkboxGroup } from "../src/components/checkbox/checkbox-group"
 import { combobox } from "../src/components/combobox/combobox"
 import { datePicker } from "../src/components/date-picker/date-picker"
 import { dialog } from "../src/components/dialog/dialog"
@@ -566,6 +567,54 @@ describe("agent", () => {
     })
     expect(outcome.ok, outcome.error?.message).toBe(true)
     expect(instance.get().value).toEqual(["theo", "ana"])
+  })
+
+  test("setValue takes one value or label as a list of one when the value is a list", async () => {
+    const agent = createAgent()
+    const tiers = [
+      { value: "general", label: "General" },
+      { value: "vip", label: "VIP Lounge" },
+    ]
+    const labeled = (tag: string, label: string) => {
+      const el = document.body.appendChild(document.createElement(tag))
+      el.setAttribute("aria-label", label)
+      return el
+    }
+    const picker = select({ id: "s", multiple: true, items: tiers })
+    const search = combobox({ id: "c", multiple: true, items: tiers })
+    const list = listbox({ id: "l", multiple: true, items: tiers })
+    const channels = checkboxGroup({ id: "g" })
+    cleanups.push(
+      bind(picker.part("trigger"), labeled("button", "Select tier")),
+      bind(search.part("input"), labeled("input", "Combobox tier")),
+      bind(list.part("root"), labeled("div", "Listbox tier")),
+      bind(channels.part("group"), labeled("div", "Channels")),
+      () => {
+        picker.destroy()
+        search.destroy()
+        list.destroy()
+        channels.destroy()
+      }
+    )
+    const outcome = await agent.act({
+      steps: [
+        ...["Select tier", "Combobox tier", "Listbox tier"].flatMap((ref) =>
+          ["general", "VIP Lounge"].map((value) => ({
+            ref,
+            action: "setValue",
+            args: [value],
+          }))
+        ),
+        { ref: "Channels", action: "setValue", args: ["email"] },
+      ],
+    })
+    expect(outcome.ok, outcome.error?.message).toBe(true)
+    expect([
+      picker.get().value,
+      search.get().value,
+      list.get().value,
+      channels.get().value,
+    ]).toEqual([["vip"], ["vip"], ["vip"], ["email"]])
   })
 
   test("setValue refuses a disabled item, by its label or its value, as a person can't choose it", async () => {
@@ -1974,6 +2023,44 @@ describe("agent act", () => {
       steps: [{ ref: "Data retention", action: "setValue", args: ["a lot"] }],
     })
     expect(outcome.error?.message).toMatch(/takes a number/)
+  })
+
+  test("a number input refuses text with grouped digits, rather than taking the digits before the first separator", async () => {
+    const agent = createAgent()
+    const onValueChange = vi.fn()
+    const instance = numberInput({
+      id: "price",
+      defaultValue: 100,
+      step: 0.5,
+      locale: "en-IN",
+      onValueChange,
+    })
+    const field = document.body.appendChild(document.createElement("input"))
+    field.setAttribute("aria-label", "Price")
+    cleanups.push(bind(instance.part("control"), field), () =>
+      instance.destroy()
+    )
+    const errors: (string | undefined)[] = []
+    for (const text of ["1,499.5", "12,34,567", "1.000,5", "1 000"]) {
+      const outcome = await agent.act({
+        steps: [{ ref: "Price", action: "setValue", args: [text] }],
+      })
+      errors.push(outcome.error?.message)
+    }
+    expect(onValueChange.mock.calls.map(([value]) => value)).toEqual([])
+    expect(errors).toEqual(
+      Array(4).fill(expect.stringMatching(/takes a number/))
+    )
+    for (const [text, value] of [
+      ["1499.5", 1499.5],
+      ["-250", -250],
+      ["90 days", 90],
+    ] as const) {
+      await agent.act({
+        steps: [{ ref: "Price", action: "setValue", args: [text] }],
+      })
+      expect(instance.get().value).toBe(value)
+    }
   })
 
   test("a select with a few items shows them", () => {

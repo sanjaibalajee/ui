@@ -1309,10 +1309,26 @@ function createAgent(
         if (Number.isNaN(number)) {
           throw new Error(`${entry.component} ${entry.ref} takes a number.`)
         }
+        // Digits after a separator, like "1,499.5", "12,34,567" or a range's "20, 80", would
+        // read only up to it, and which separator is the decimal depends on the locale.
+        const rest = args[0].trim().replace(/^[-+]?(\d+\.?\d*|\.\d+)/, "")
+        if (/^[\s,.'’_]\s*\d/.test(rest)) {
+          throw new Error(
+            `${entry.component} ${entry.ref} takes ${Array.isArray(state.value) ? "a list of numbers, like [20, 80]" : "a number without grouping, like 1499.5"}, not ${JSON.stringify(args[0])}.`
+          )
+        }
         args = [
           Array.isArray(state.value) ? [number] : number,
           ...args.slice(1),
         ]
+      }
+      // A list's api would take a string's characters as its values, like "bold" as b, o, l, d.
+      if (
+        action === "setValue" &&
+        typeof args[0] === "string" &&
+        Array.isArray(state.value)
+      ) {
+        args = [[args[0]], ...args.slice(1)]
       }
       // The disabled items this step saw while it opened the list, if it did.
       let whileOpen: Set<string> | undefined
